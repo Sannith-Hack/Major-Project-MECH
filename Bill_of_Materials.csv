@@ -1,0 +1,10 @@
+Item,Quantity,Purpose
+ESP32 DevKit V1,1,Main Controller
+8-Channel 5V Relay Module,1,Motor H-Bridge Control
+24V 15A SMPS,1,Main Power Supply
+LM2596 Buck Converter,1,5V Logic Power
+5840-31ZY 24V Motor,3,"Actuators (1 Lift, 2 Drive)"
+16 AWG Power Wire,10m,24V Connections
+Jumper Wire Set,1,Logic Signals
+15A Fuse + Holder,1,Safety
+Digital Multimeter,1,Calibration
