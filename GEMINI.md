@@ -32,3 +32,11 @@ The ESP32 hosts a mobile-friendly web server.
 *   **Voltage Calibration:** Use a multimeter to set the Buck Converter to 5V *before* connecting the ESP32.
 *   **Mechanical Isolation:** Ensure 24V motor wires (16 AWG) are physically separated from 5V logic jumpers.
 *   **Emergency Stop:** Software includes a global "STOP ALL" function.
+
+## Assembly Checklist
+1. [ ] Calibrate Buck Converter to 5.0V.
+2. [ ] Connect common grounds across all modules.
+3. [ ] Wire 24V power to Relay NO/NC terminals (16 AWG).
+4. [ ] Wire Motor COM terminals.
+5. [ ] Connect ESP32 GPIOs to Relay IN pins.
+6. [ ] Upload Code and test WiFi connection.
