@@ -1,50 +1,34 @@
 # Wireless Weightlifting Trolley - Project Overview
 
-This project focuses on the development of a remotely controlled, wireless weightlifting machine (Trolley) designed for mechanical material handling. It integrates high-torque DC motors, an ESP32 microcontroller for wireless connectivity, and a robust power management system.
+This project focuses on a remotely controlled, wireless weightlifting trolley prototype designed for mechanical material handling. It uses an ESP32 for WiFi control and a 6-relay H-Bridge array for high-power 24V motor management.
 
 ## Core Technologies & Components
 
-*   **Microcontroller:** ESP32 (WiFi + Bluetooth enabled).
-*   **Actuators:** 24V 27RPM High Torque DC Worm Gear Motors (Model: 5840-31ZY) with self-locking capabilities.
-*   **Power Supply:** 24V 15A 360W SMPS (Switching Power Supply).
-*   **Motor Control:** High-current H-Bridge drivers (e.g., BTS7960 43A).
-*   **Power Regulation:** DC-DC Buck Converter (Stepping down 24V to 5V for logic circuits).
-*   **Safety Logic:** 4-Channel Relay Module for high-power switching and safety interlocks.
+*   **Microcontroller:** ESP32 (WiFi Enabled).
+*   **Actuators:** 3x 24V 5840-31ZY High Torque Worm Gear Motors (1x Lift, 2x Navigation).
+*   **Power Supply:** 24V 15A 360W SMPS.
+*   **Logic Power:** 1x LM2596 Buck Converter (Stepping 24V down to exactly 5V).
+*   **Motor Control:** 8-Channel 5V Relay Module (using 6 relays as H-Bridges).
+*   **Safety:** Self-locking worm gears and emergency software stop.
 
-## Hardware Architecture & Wiring
+## Hardware Architecture (Relay H-Bridge)
 
 ### Power Distribution
-1.  **High Power:** SMPS 24V output directly feeds the Motor Driver power inputs.
-2.  **Logic Power:** SMPS 24V output connects to the Buck Converter input.
-3.  **Low Power:** Buck Converter (tuned to 5V) powers the ESP32 (via VIN) and the Relay Module.
+1.  **High Power (24V):** SMPS 24V output connects directly to the Relay "Normally Open" (NO) terminals.
+2.  **Logic Power (5V):** SMPS 24V -> LM2596 Buck Converter (Tuned to 5.0V) -> ESP32 VIN & Relay VCC.
+3.  **Common Ground:** All GNDs (SMPS, Buck, ESP32, Relay Module) MUST be connected together.
 
 ### Control Signal Mapping (ESP32)
-*   **GPIO 12:** Motor Forward / Lift Up (PWM).
-*   **GPIO 13:** Motor Backward / Lower Down (PWM).
-*   **GND:** All grounds (SMPS, Buck, ESP32, Driver) MUST be common.
+*   **Lifting Motor:** GPIO 12 (UP), GPIO 13 (DOWN).
+*   **Left Navigation:** GPIO 14 (FWD), GPIO 27 (BWD).
+*   **Right Navigation:** GPIO 26 (FWD), GPIO 25 (BWD).
 
 ## Software & Programming
-
-The ESP32 is programmed using the **Arduino IDE**.
-
-### Key Commands / Setup
-*   **Board Manager URL:** `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
-*   **Board Selection:** `DOIT ESP32 DEVKIT V1`.
-*   **Communication:** Serial Baud Rate `115200`.
-
-### Prototype Testing Logic
-The default testing firmware establishes a WiFi Access Point (`Trolley_Control`). A web server hosted on the ESP32 provides a mobile-friendly browser interface at `192.168.4.1` for basic Up/Down/Stop controls.
+The ESP32 hosts a mobile-friendly web server.
+*   **Access Point:** `Trolley_Pro` (IP: `192.168.4.1`).
+*   **Logic:** Active Low (LOW = Relay ON).
 
 ## Safety Protocols
-
-*   **Self-Locking Gears:** The worm gear motors prevent the load from dropping even if power is lost.
-*   **Isolation:** Use of optocouplers is recommended to isolate the ESP32 from motor back-EMF.
-*   **Mechanical Limits:** TODO: Integrate limit switches to prevent mechanical over-travel.
-*   **Initial Testing:** Always test motor direction and WiFi connectivity without the mechanical load attached.
-
-## Directory Contents
-
-*   `USEFULL/`: Contains CAD models and technical reference images of components.
-*   `Doc.txt`: Detailed technical notes on wiring, safety, and code snippets.
-*   `Weightlifting_Trolley_Final_Report.docx`: Comprehensive project documentation.
-*   `generate_final_report.py`: Utility script used to generate project reports.
+*   **Voltage Calibration:** Use a multimeter to set the Buck Converter to 5V *before* connecting the ESP32.
+*   **Mechanical Isolation:** Ensure 24V motor wires (16 AWG) are physically separated from 5V logic jumpers.
+*   **Emergency Stop:** Software includes a global "STOP ALL" function.
