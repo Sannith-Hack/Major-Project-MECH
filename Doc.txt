@@ -1,13 +1,14 @@
 === Wireless Weightlifting Trolley - Hardware & Software Guide ===
 
-1. COMPLETE PARTS LIST (DON'T MISS ANY COMPONENT)
-------------------------------------------------
+1. COMPLETE PARTS LIST (FINAL PROTOTYPE CONFIGURATION)
+----------------------------------------------------
 - 1x ESP32 DevKit V1 (30-pin version)
-- 1x 8-Channel 5V Relay Module (Active Low)
+- 1x 4-Channel 5V Relay Module (Existing)
+- 1x 2-Channel 5V Relay Module (New addition)
 - 3x 5840-31ZY 24V Worm Gear Motors (1x Lift, 2x Navigation)
 - 1x 24V 15A 360W SMPS (Switching Power Supply)
 - 1x LM2596 DC-DC Buck Converter (To step down 24V to 5.0V)
-- 1x 15A Blade Fuse + Inline Fuse Holder (Safety)
+- 1x 15A Blade Fuse + Inline Fuse Holder
 - 1x Heavy Duty Toggle Switch (Master ON/OFF)
 - 10 Meters 16 AWG Power Wire (Red/Black) for 24V connections
 - 40x Jumper Wires (F-F, M-F, M-M) for 5V logic connections
@@ -19,27 +20,31 @@
 2. POWER DISTRIBUTION (WIRING STRATEGY)
 --------------------------------------
 A. High Power Loop (24V Line):
-- SMPS 24V+ -> Fuse -> Toggle Switch -> Relay 'Normally Open' (NO) terminals.
-- SMPS GND -> Relay 'Normally Closed' (NC) terminals.
-- Motor Terminal A -> Relay 1 'Common' (COM).
-- Motor Terminal B -> Relay 2 'Common' (COM).
-(Repeat this 2-relay COM wiring for each of the 3 motors).
+- SMPS 24V+ -> Fuse -> Toggle Switch -> Relay 'Normally Open' (NO) terminals on BOTH modules.
+- SMPS GND -> Relay 'Normally Closed' (NC) terminals on BOTH modules.
+- Lift Motor: 4-Channel Module (Relay 1 & 2 COM).
+- Left Motor: 4-Channel Module (Relay 3 & 4 COM).
+- Right Motor: 2-Channel Module (Relay 1 & 2 COM).
 
 B. Logic Power Loop (5V Line):
 - SMPS 24V+ -> LM2596 IN+
 - SMPS GND  -> LM2596 IN-
-- LM2596 OUT+ (Tuned to 5.0V exactly) -> ESP32 VIN & Relay Module VCC.
-- LM2596 OUT- -> ESP32 GND & Relay Module GND.
+- LM2596 OUT+ (Tuned to 5.0V exactly) -> ESP32 VIN, 4-Ch Module VCC, and 2-Ch Module VCC.
+- LM2596 OUT- -> Common GND for all modules.
 
 3. ESP32 PIN CONNECTIONS
 ------------------------
-- Lift Up: GPIO 12
-- Lift Down: GPIO 13
-- Left Fwd: GPIO 14
-- Left Bwd: GPIO 27
-- Right Fwd: GPIO 26
-- Right Bwd: GPIO 25
+- 4-Channel Module:
+  - IN1 (Lift Up): GPIO 12
+  - IN2 (Lift Down): GPIO 13
+  - IN3 (Left Fwd): GPIO 14
+  - IN4 (Left Bwd): GPIO 27
+- 2-Channel Module:
+  - IN1 (Right Fwd): GPIO 26
+  - IN2 (Right Bwd): GPIO 25
 
+4. FINAL CONTROL CODE
+---------------------
 4. FINAL CONTROL CODE (Lifting + Navigation)
 -------------------------------------------
 #include <WiFi.h>

@@ -8,20 +8,20 @@ This project focuses on a remotely controlled, wireless weightlifting trolley pr
 *   **Actuators:** 3x 24V 5840-31ZY High Torque Worm Gear Motors (1x Lift, 2x Navigation).
 *   **Power Supply:** 24V 15A 360W SMPS.
 *   **Logic Power:** 1x LM2596 Buck Converter (Stepping 24V down to exactly 5V).
-*   **Motor Control:** 8-Channel 5V Relay Module (using 6 relays as H-Bridges).
+*   **Motor Control:** 1x 4-Channel 5V Relay Module + 1x 2-Channel 5V Relay Module (Total 6 Relays).
 *   **Safety:** Self-locking worm gears and emergency software stop.
 
 ## Hardware Architecture (Relay H-Bridge)
 
 ### Power Distribution
-1.  **High Power (24V):** SMPS 24V output connects directly to the Relay "Normally Open" (NO) terminals.
-2.  **Logic Power (5V):** SMPS 24V -> LM2596 Buck Converter (Tuned to 5.0V) -> ESP32 VIN & Relay VCC.
-3.  **Common Ground:** All GNDs (SMPS, Buck, ESP32, Relay Module) MUST be connected together.
+1.  **High Power (24V):** SMPS 24V output connects directly to the Relay "Normally Open" (NO) terminals of both modules.
+2.  **Logic Power (5V):** SMPS 24V -> LM2596 Buck Converter (Tuned to 5.0V) -> ESP32 VIN & VCC of both Relay Modules.
+3.  **Common Ground:** All GNDs (SMPS, Buck, ESP32, both Relay Modules) MUST be connected together.
 
 ### Control Signal Mapping (ESP32)
-*   **Lifting Motor:** GPIO 12 (UP), GPIO 13 (DOWN).
-*   **Left Navigation:** GPIO 14 (FWD), GPIO 27 (BWD).
-*   **Right Navigation:** GPIO 26 (FWD), GPIO 25 (BWD).
+*   **Lifting Motor (4-Channel Module):** GPIO 12 (UP), GPIO 13 (DOWN).
+*   **Left Navigation (4-Channel Module):** GPIO 14 (FWD), GPIO 27 (BWD).
+*   **Right Navigation (2-Channel Module):** GPIO 26 (FWD), GPIO 25 (BWD).
 
 ## Software & Programming
 The ESP32 hosts a mobile-friendly web server.
