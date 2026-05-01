@@ -1,4 +1,5 @@
 # Wireless Weightlifting Trolley - Complete Setup Guide (Joystick Edition)
+**Developed by:** P.Sannith (CSE 3rd Year)
 
 This document is the master setup guide for the ESP32-based Wireless Weightlifting Trolley, updated with the Virtual Joystick and Touch Support.
 

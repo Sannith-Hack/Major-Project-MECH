@@ -1,5 +1,7 @@
 # Wireless Weightlifting Trolley - Project Overview
 
+**Developer:** P.Sannith (CSE 3rd Year)
+
 This project focuses on a remotely controlled, wireless weightlifting trolley prototype designed for mechanical material handling. It uses an ESP32 for WiFi control and a 6-relay H-Bridge array for high-power 24V motor management.
 
 ## Core Technologies & Components
@@ -36,103 +38,64 @@ To control motor direction (Forward/Reverse), relays are wired in an **H-Bridge 
 *   **Diagonal Back-Right:** Right motor backward, Left motor stopped.
 *   **Diagonal Back-Left:** Left motor backward, Right motor stopped.
 
-## Current Control Code
+## Current Control Code (Updated with Logic Toggle)
 ```cpp
 #include <WiFi.h>
 #include <WebServer.h>
 
+// ================= CONFIGURATION =================
+// Set this to false if using single-channel relay modules (usually Active High)
+// Set this to true if using multi-channel relay modules (usually Active Low)
+#define RELAY_ACTIVE_LOW true 
+
+const int RELAY_ON  = RELAY_ACTIVE_LOW ? LOW : HIGH;
+const int RELAY_OFF = RELAY_ACTIVE_LOW ? HIGH : LOW;
+
 const int liftUpPin = 12; const int liftDownPin = 13;
 const int leftFwdPin = 14; const int leftBwdPin = 27;
 const int rightFwdPin = 26; const int rightBwdPin = 25;
+// =================================================
 
 WebServer server(80);
 
 const char* htmlPage = R"rawliteral(
-<!DOCTYPE html><html><head><title>Trolley Pro</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<style>
-  body { text-align:center; font-family:sans-serif; background-color:#121212; color:white; margin:0; overflow:hidden; user-select:none; -webkit-user-select:none; }
-  .container { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; }
-  .lift-box { margin-bottom: 20px; width: 100%; }
-  .btn { width:40%; height:80px; font-size:18px; margin:10px; border-radius:15px; border:none; color:white; font-weight:bold; background:#007bff; touch-action:none; }
-  .btn:active { background:#004a99; }
-  #joystick-container { position:relative; width:200px; height:200px; background:rgba(255,255,255,0.1); border-radius:50%; margin:20px; border: 2px solid #444; touch-action:none; }
-  #joystick-stick { position:absolute; width:80px; height:80px; background:#28a745; border-radius:50%; top:60px; left:60px; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
-</style></head>
-<body>
-  <div class="container">
-    <h2>TROLLEY PRO</h2>
-    <div class="lift-box">
-      <button class="btn" ontouchstart="fetch('/liftup')" ontouchend="fetch('/stoplift')" onmousedown="fetch('/liftup')" onmouseup="fetch('/stoplift')">LIFT UP</button>
-      <button class="btn" ontouchstart="fetch('/liftdown')" ontouchend="fetch('/stoplift')" onmousedown="fetch('/liftdown')" onmouseup="fetch('/stoplift')">LIFT DOWN</button>
-    </div>
-    <div id="joystick-container"><div id="joystick-stick"></div></div>
-    <p id="status">READY</p>
-  </div>
-  <script>
-    const stick = document.getElementById('joystick-stick');
-    const container = document.getElementById('joystick-container');
-    let lastCmd = "";
-    container.addEventListener('touchstart', handleTouch);
-    container.addEventListener('touchmove', handleTouch);
-    container.addEventListener('touchend', () => { stick.style.left = '60px'; stick.style.top = '60px'; sendCmd("/stopnav"); });
-    function handleTouch(e) {
-      e.preventDefault(); const rect = container.getBoundingClientRect(); const touch = e.touches[0];
-      const x = touch.clientX - rect.left - 100; const y = touch.clientY - rect.top - 100;
-      const dist = Math.min(Math.sqrt(x*x + y*y), 60); const angle = Math.atan2(y, x);
-      stick.style.left = (Math.cos(angle) * dist + 60) + 'px'; stick.style.top = (Math.sin(angle) * dist + 60) + 'px';
-      if (dist > 25) {
-        let cmd = ""; const deg = angle * 180 / Math.PI;
-        if (deg >= -22.5 && deg < 22.5) cmd = "/right_pivot";
-        else if (deg >= -67.5 && deg < -22.5) cmd = "/right_place";
-        else if (deg >= -112.5 && deg < -67.5) cmd = "/fwd";
-        else if (deg >= -157.5 && deg < -112.5) cmd = "/left_place";
-        else if (deg >= 157.5 || deg < -157.5) cmd = "/left_pivot";
-        else if (deg >= 112.5 && deg < 157.5) cmd = "/bwd_left";
-        else if (deg >= 67.5 && deg < 112.5) cmd = "/bwd";
-        else if (deg >= 22.5 && deg < 67.5) cmd = "/bwd_right";
-        sendCmd(cmd);
-      } else { sendCmd("/stopnav"); }
-    }
-    function sendCmd(cmd) { if (lastCmd !== cmd) { fetch(cmd); lastCmd = cmd; document.getElementById('status').innerText = "MOVING: " + cmd.replace("/","").toUpperCase().replace("_"," "); } }
-  </script>
-</body></html>
+... (HTML Content Remains Same) ...
 )rawliteral";
 
 void handleRoot() { server.send(200, "text/html", htmlPage); }
-void stopLift() { digitalWrite(liftUpPin, HIGH); digitalWrite(liftDownPin, HIGH); server.send(200); }
-void stopNav() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, HIGH); server.send(200); }
-void forward() { digitalWrite(leftFwdPin, LOW); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, LOW); digitalWrite(rightBwdPin, HIGH); server.send(200); }
-void backward() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, LOW); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, LOW); server.send(200); }
-void leftPivot() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, LOW); digitalWrite(rightBwdPin, HIGH); server.send(200); }
-void rightPivot() { digitalWrite(leftFwdPin, LOW); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, HIGH); server.send(200); }
-void leftPlace() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, LOW); digitalWrite(rightFwdPin, LOW); digitalWrite(rightBwdPin, HIGH); server.send(200); }
-void rightPlace() { digitalWrite(leftFwdPin, LOW); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, LOW); server.send(200); }
-void bwdLeft() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, LOW); server.send(200); }
-void bwdRight() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, LOW); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, HIGH); server.send(200); }
-void liftUp() { digitalWrite(liftUpPin, LOW); digitalWrite(liftDownPin, HIGH); server.send(200); }
-void liftDown() { digitalWrite(liftUpPin, HIGH); digitalWrite(liftDownPin, LOW); server.send(200); }
+
+void stopLift() { 
+  Serial.println("LIFT: STOP");
+  digitalWrite(liftUpPin, RELAY_OFF); digitalWrite(liftDownPin, RELAY_OFF); 
+  server.send(200); 
+}
+
+void stopNav() { 
+  Serial.println("NAV: STOP");
+  digitalWrite(leftFwdPin, RELAY_OFF); digitalWrite(leftBwdPin, RELAY_OFF); 
+  digitalWrite(rightFwdPin, RELAY_OFF); digitalWrite(rightBwdPin, RELAY_OFF); 
+  server.send(200); 
+}
+
+// Navigation & Lifting functions use RELAY_ON / RELAY_OFF
+// ... (Refer to Trolley_Pro.ino for full implementation) ...
 
 void setup() {
+  Serial.begin(115200);
   int pins[] = {12, 13, 14, 27, 26, 25};
-  for(int p : pins) { pinMode(p, OUTPUT); digitalWrite(p, HIGH); }
+  for(int p : pins) { pinMode(p, OUTPUT); digitalWrite(p, RELAY_OFF); }
   WiFi.softAP("Trolley_Pro", "12345678");
-  server.on("/", handleRoot);
-  server.on("/liftup", liftUp); server.on("/liftdown", liftDown); server.on("/stoplift", stopLift);
-  server.on("/fwd", forward); server.on("/bwd", backward);
-  server.on("/left_pivot", leftPivot); server.on("/right_pivot", rightPivot);
-  server.on("/left_place", leftPlace); server.on("/right_place", rightPlace);
-  server.on("/bwd_left", bwdLeft); server.on("/bwd_right", bwdRight);
-  server.on("/stopnav", stopNav);
   server.begin();
 }
 void loop() { server.handleClient(); }
 ```
 
 ## Known Troubleshooting & Fixes
+*   **Lifting Not Working (Single Relays):** If you are using independent single-channel relay modules, they are likely **Active High**. In the code, change `#define RELAY_ACTIVE_LOW true` to `false`.
+*   **Relay Logic Test:** Open the **Serial Monitor (115200 baud)**. When you press "LIFT UP", you should see `LIFT: UP` in the monitor. If you see the message but the relay doesn't click, check your wiring and logic toggle.
 *   **Upload Errors (Semaphore Timeout / Port missing):** Requires the **Silicon Labs CP210x USB to UART Bridge** driver. Do not select Bluetooth COM ports.
 *   **Connecting... Error during upload:** Press and hold the **"BOOT"** button on the ESP32 when the IDE says `Connecting......._____`.
-*   **Silent Relays:** If a relay doesn't click, verify the `JD-VCC` to `VCC` jumper is installed, and High/Low trigger (if applicable) is set to `L` (Low).
+*   **Silent Relays:** If a relay doesn't click, verify the `JD-VCC` to `VCC` jumper is installed (for multi-channel modules), and High/Low trigger (if applicable) is set correctly.
 
 ## Assembly Checklist
 1. [x] Install CP210x Drivers and test ESP32 code upload via USB.
