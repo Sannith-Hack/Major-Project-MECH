@@ -1,27 +1,33 @@
 /*
  * Wireless Weightlifting Trolley - Trolley Pro
- * Developer: P.Sannith (CSE 3rd Year)
+ * Final Hardware-Software Sync
  */
 
 #include <WiFi.h>
 #include <WebServer.h>
 
-// Pins
+// =====================================================================
+// CRITICAL HARDWARE NOTE:
+// 1. Connect the GND of your Separate Power Source to the GND of the ESP32.
+// 2. If the relay clicked when you touched the signal to GND, it is Active LOW.
+// 3. We will use a "Pull-Up" method to force it OFF.
+// =====================================================================
+
 const int liftUpPin = 12; const int liftDownPin = 13;
 const int leftFwdPin = 14; const int leftBwdPin = 27;
 const int rightFwdPin = 26; const int rightBwdPin = 25;
 
 WebServer server(80);
 
-// NEW RELAY CONTROL FUNCTION (Safest Method)
-// Switches between OUTPUT/LOW (ON) and INPUT (OFF) 
-// This forces Active-Low relays to stay OFF regardless of ESP32 voltage.
+// Robust Relay Control: Forces 3.3V pin to act as a true switch
 void relayWrite(int pin, bool turnOn) {
   if (turnOn) {
     pinMode(pin, OUTPUT);
-    digitalWrite(pin, LOW); // Pulls to GND to turn ON
+    digitalWrite(pin, LOW);  // Active LOW: 0V = ON
   } else {
-    pinMode(pin, INPUT);    // Disconnects pin to turn OFF (Strongest OFF)
+    // To turn it OFF, we set it to INPUT_PULLUP.
+    // This uses the ESP32's internal resistor to pull the pin to 3.3V.
+    pinMode(pin, INPUT_PULLUP); 
   }
 }
 
@@ -80,13 +86,12 @@ const char* htmlPage = R"rawliteral(
 
 void handleRoot() { server.send(200, "text/html", htmlPage); }
 
-// Stop commands
 void stopLift() { relayWrite(liftUpPin, false); relayWrite(liftDownPin, false); server.send(200); }
 void stopNav() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, false); server.send(200); }
-
-// Navigation logic
 void forward() { relayWrite(leftFwdPin, true); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, true); relayWrite(rightBwdPin, false); server.send(200); }
 void backward() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, true); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, true); server.send(200); }
+void liftUp() { relayWrite(liftUpPin, true); relayWrite(liftDownPin, false); server.send(200); }
+void liftDown() { relayWrite(liftUpPin, false); relayWrite(liftDownPin, true); server.send(200); }
 void leftPivot() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, true); relayWrite(rightBwdPin, false); server.send(200); }
 void rightPivot() { relayWrite(leftFwdPin, true); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, false); server.send(200); }
 void leftPlace() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, true); relayWrite(rightFwdPin, true); relayWrite(rightBwdPin, false); server.send(200); }
@@ -94,14 +99,10 @@ void rightPlace() { relayWrite(leftFwdPin, true); relayWrite(leftBwdPin, false);
 void bwdLeft() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, true); server.send(200); }
 void bwdRight() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, true); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, false); server.send(200); }
 
-// Lifting logic
-void liftUp() { relayWrite(liftUpPin, true); relayWrite(liftDownPin, false); server.send(200); }
-void liftDown() { relayWrite(liftUpPin, false); relayWrite(liftDownPin, true); server.send(200); }
-
 void setup() {
   Serial.begin(115200);
   int pins[] = {12, 13, 14, 27, 26, 25};
-  for(int p : pins) { pinMode(p, INPUT); } // Set to High-Impedance (OFF)
+  for(int p : pins) { pinMode(p, INPUT_PULLUP); } // Force OFF at start
   
   WiFi.softAP("Trolley_Pro", "12345678");
   server.on("/", handleRoot);
@@ -111,9 +112,8 @@ void setup() {
   server.on("/left_place", leftPlace); server.on("/right_place", rightPlace);
   server.on("/bwd_left", bwdLeft); server.on("/bwd_right", bwdRight);
   server.on("/stopnav", stopNav);
-  
   server.begin();
-  Serial.println("Final High-Impedance Fix Applied.");
+  Serial.println("System Ready. Check Common Ground.");
 }
 
 void loop() { server.handleClient(); }
