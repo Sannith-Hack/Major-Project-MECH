@@ -6,30 +6,12 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-// =====================================================================
-// CRITICAL HARDWARE NOTE:
-// 1. Connect the GND of your Separate Power Source to the GND of the ESP32.
-// 2. If the relay clicked when you touched the signal to GND, it is Active LOW.
-// 3. We will use a "Pull-Up" method to force it OFF.
-// =====================================================================
-
 const int liftUpPin = 12; const int liftDownPin = 13;
 const int leftFwdPin = 14; const int leftBwdPin = 27;
 const int rightFwdPin = 26; const int rightBwdPin = 25;
+const int ledPin = 2; // Built-in LED for heartbeat
 
 WebServer server(80);
-
-// Robust Relay Control: Forces 3.3V pin to act as a true switch
-void relayWrite(int pin, bool turnOn) {
-  if (turnOn) {
-    pinMode(pin, OUTPUT);
-    digitalWrite(pin, LOW);  // Active LOW: 0V = ON
-  } else {
-    // To turn it OFF, we set it to INPUT_PULLUP.
-    // This uses the ESP32's internal resistor to pull the pin to 3.3V.
-    pinMode(pin, INPUT_PULLUP); 
-  }
-}
 
 const char* htmlPage = R"rawliteral(
 <!DOCTYPE html><html><head><title>Trolley Pro</title>
@@ -61,11 +43,13 @@ const char* htmlPage = R"rawliteral(
     container.addEventListener('touchstart', handleTouch);
     container.addEventListener('touchmove', handleTouch);
     container.addEventListener('touchend', () => { stick.style.left = '60px'; stick.style.top = '60px'; sendCmd("/stopnav"); });
+    
     function handleTouch(e) {
       e.preventDefault(); const rect = container.getBoundingClientRect(); const touch = e.touches[0];
       const x = touch.clientX - rect.left - 100; const y = touch.clientY - rect.top - 100;
       const dist = Math.min(Math.sqrt(x*x + y*y), 60); const angle = Math.atan2(y, x);
       stick.style.left = (Math.cos(angle) * dist + 60) + 'px'; stick.style.top = (Math.sin(angle) * dist + 60) + 'px';
+      
       if (dist > 25) {
         let cmd = ""; const deg = angle * 180 / Math.PI;
         if (deg >= -22.5 && deg < 22.5) cmd = "/right_pivot";
@@ -79,32 +63,49 @@ const char* htmlPage = R"rawliteral(
         sendCmd(cmd);
       } else { sendCmd("/stopnav"); }
     }
+    
     function sendCmd(cmd) { if (lastCmd !== cmd) { fetch(cmd); lastCmd = cmd; document.getElementById('status').innerText = "MOVING: " + cmd.replace("/","").toUpperCase().replace("_"," "); } }
   </script>
 </body></html>
 )rawliteral";
 
 void handleRoot() { server.send(200, "text/html", htmlPage); }
+void stopLift() { digitalWrite(liftUpPin, HIGH); digitalWrite(liftDownPin, HIGH); server.send(200); Serial.println("LIFT STOP"); }
+void stopNav() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, HIGH); server.send(200); Serial.println("NAV STOP"); }
 
-void stopLift() { relayWrite(liftUpPin, false); relayWrite(liftDownPin, false); server.send(200); }
-void stopNav() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, false); server.send(200); }
-void forward() { relayWrite(leftFwdPin, true); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, true); relayWrite(rightBwdPin, false); server.send(200); }
-void backward() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, true); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, true); server.send(200); }
-void liftUp() { relayWrite(liftUpPin, true); relayWrite(liftDownPin, false); server.send(200); }
-void liftDown() { relayWrite(liftUpPin, false); relayWrite(liftDownPin, true); server.send(200); }
-void leftPivot() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, true); relayWrite(rightBwdPin, false); server.send(200); }
-void rightPivot() { relayWrite(leftFwdPin, true); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, false); server.send(200); }
-void leftPlace() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, true); relayWrite(rightFwdPin, true); relayWrite(rightBwdPin, false); server.send(200); }
-void rightPlace() { relayWrite(leftFwdPin, true); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, true); server.send(200); }
-void bwdLeft() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, false); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, true); server.send(200); }
-void bwdRight() { relayWrite(leftFwdPin, false); relayWrite(leftBwdPin, true); relayWrite(rightFwdPin, false); relayWrite(rightBwdPin, false); server.send(200); }
+// Navigation Commands
+void forward() { digitalWrite(leftFwdPin, LOW); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, LOW); digitalWrite(rightBwdPin, HIGH); server.send(200); Serial.println("FWD"); }
+void backward() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, LOW); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, LOW); server.send(200); Serial.println("BWD"); }
+
+void leftPivot() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, LOW); digitalWrite(rightBwdPin, HIGH); server.send(200); Serial.println("L_PIVOT"); }
+void rightPivot() { digitalWrite(leftFwdPin, LOW); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, HIGH); server.send(200); Serial.println("R_PIVOT"); }
+
+void leftPlace() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, LOW); digitalWrite(rightFwdPin, LOW); digitalWrite(rightBwdPin, HIGH); server.send(200); Serial.println("L_PLACE"); }
+void rightPlace() { digitalWrite(leftFwdPin, LOW); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, LOW); server.send(200); Serial.println("R_PLACE"); }
+
+void bwdLeft() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, HIGH); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, LOW); server.send(200); Serial.println("BWD_L"); }
+void bwdRight() { digitalWrite(leftFwdPin, HIGH); digitalWrite(leftBwdPin, LOW); digitalWrite(rightFwdPin, HIGH); digitalWrite(rightBwdPin, HIGH); server.send(200); Serial.println("BWD_R"); }
+
+void liftUp() { digitalWrite(liftUpPin, LOW); digitalWrite(liftDownPin, HIGH); server.send(200); Serial.println("LIFT UP"); }
+void liftDown() { digitalWrite(liftUpPin, HIGH); digitalWrite(liftDownPin, LOW); server.send(200); Serial.println("LIFT DOWN"); }
 
 void setup() {
   Serial.begin(115200);
-  int pins[] = {12, 13, 14, 27, 26, 25};
-  for(int p : pins) { pinMode(p, INPUT_PULLUP); } // Force OFF at start
+  Serial.println("\n--- Trolley Pro Booting ---");
+
+  pinMode(ledPin, OUTPUT);
   
+  // Initialize pins to HIGH (Relay OFF)
+  int pins[] = {liftUpPin, liftDownPin, leftFwdPin, leftBwdPin, rightFwdPin, rightBwdPin};
+  for(int p : pins) {
+    pinMode(p, OUTPUT);
+    digitalWrite(p, HIGH);
+  }
+
+  // Setup WiFi
   WiFi.softAP("Trolley_Pro", "12345678");
+  Serial.print("Soft-AP IP: "); Serial.println(WiFi.softAPIP());
+
   server.on("/", handleRoot);
   server.on("/liftup", liftUp); server.on("/liftdown", liftDown); server.on("/stoplift", stopLift);
   server.on("/fwd", forward); server.on("/bwd", backward);
@@ -112,8 +113,30 @@ void setup() {
   server.on("/left_place", leftPlace); server.on("/right_place", rightPlace);
   server.on("/bwd_left", bwdLeft); server.on("/bwd_right", bwdRight);
   server.on("/stopnav", stopNav);
+  
   server.begin();
-  Serial.println("System Ready. Check Common Ground.");
+  Serial.println("HTTP Server Started");
 }
 
-void loop() { server.handleClient(); }
+unsigned long lastBlink = 0;
+unsigned long lastWiFiCheck = 0;
+
+void loop() {
+  server.handleClient();
+
+  // Heartbeat LED: Blinks every 1 second
+  if (millis() - lastBlink > 1000) {
+    digitalWrite(ledPin, !digitalRead(ledPin));
+    lastBlink = millis();
+  }
+
+  // WiFi Stability Check: Every 30 seconds
+  if (millis() - lastWiFiCheck > 30000) {
+    lastWiFiCheck = millis();
+    if (WiFi.softAPIP()[0] == 0) { // If IP is lost or stack crashed
+      Serial.println("WiFi Critical Failure! Restarting AP...");
+      WiFi.softAP("Trolley_Pro", "12345678");
+    }
+  }
+}
+
